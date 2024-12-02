@@ -1,0 +1,5 @@
+*.ttf
+/.venv*
+token*
+*.bat
+__pycache_*
