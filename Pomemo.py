@@ -5,7 +5,7 @@ from bleak import BleakScanner, BLEDevice, BleakClient
 
 from dataclasses import dataclass
 from enum import Enum
-from PIL import ImageFont, Image, ImageDraw
+from PIL import ImageFont, Image, ImageDraw,ImageOps
 
 DEVICE_NAME = "M02 Pro"
 CONNECTION_RETRY_MAX_COUNT = 3
@@ -36,7 +36,7 @@ class PrintStyle:
     mode:PrintMode=PrintMode.DEFAULT
 
 
-async def main(texts: list[PrintStyle]):
+async def PrintText(texts: list[PrintStyle]):
     # scan and connect
     device = await connect()
     if device:
@@ -57,6 +57,18 @@ async def main(texts: list[PrintStyle]):
         await feed(client=client, line=4)
         await asyncio.sleep(2)
 
+async def PrintImg(path:str):
+        # scan and connect
+    device = await connect()
+    if device:
+        print("connected.")
+    else:
+        print("device not found.")
+        return
+    async with BleakClient(device) as client:
+        await print_img(client=client,path=path)
+        await feed(client=client)
+        await asyncio.sleep(2)
 async def PrintLabel():
     device = await connect()
     if device:
@@ -89,12 +101,10 @@ async def send_command(client: BleakClient, data: bytes):
         char_specifier=CHARACTERISTIC_UUID_WRITE, data=data, response=True
     )
 
-
 # 紙送り
 async def feed(client: BleakClient, line: int = 1):
     print(f"feed paper: {line} lines")
     await send_command(client=client, data=ESC + b"d" + line.to_bytes(1, "little"))
-
 
 # 接続
 async def connect() -> Optional[BLEDevice]:
@@ -105,7 +115,7 @@ async def connect() -> Optional[BLEDevice]:
         retry_count += 1
     return device
 
-
+# 線描画
 async def print_line(client: BleakClient):
     # GS v 0 コマンド
     # パラメータの詳細はESC/POSのコマンドリファレンスを参照
@@ -118,11 +128,26 @@ async def print_line(client: BleakClient):
         + int(1).to_bytes(2, byteorder="little")
     )
     await send_command(client=client, data=command)
-
     # 上記コマンドで指定したバイト数分のビットマップデータを送信する
     line_data = bytearray([0xFF] * BYTE_PER_LINE)
     await send_command(client=client, data=line_data)
 
+async def print_img(client: BleakClient,path:str):
+    # 指定した文字が描かれたビットマップを生成して取得
+    bitmap_data = img_to_bitmap(path)
+
+    # GS v 0 コマンド
+    command = (
+        GS
+        + b"v0"
+        + int(0).to_bytes(1, byteorder="little")
+        + int(BYTE_PER_LINE).to_bytes(2, byteorder="little")
+        + int(bitmap_data.height).to_bytes(2, byteorder="little")
+    )
+    await send_command(client=client, data=command)
+
+    # 上記コマンドで指定したバイト数分のビットマップデータを送信する
+    await send_command(client=client, data=bitmap_data.bitmap)
 
 async def print_text(client: BleakClient, text: str, fontsize: int = 24):
     # 指定した文字が描かれたビットマップを生成して取得
@@ -141,25 +166,6 @@ async def print_text(client: BleakClient, text: str, fontsize: int = 24):
     # 上記コマンドで指定したバイト数分のビットマップデータを送信する
     await send_command(client=client, data=bitmap_data.bitmap)
 
-
-async def print_line(client: BleakClient):
-    # GS v 0 コマンド
-    # パラメータの詳細はESC/POSのコマンドリファレンスを参照
-    # ビットマップのx,yサイズはリトルエンディアンで送信する必要があるので注意
-    command = (
-        GS
-        + b"v0"
-        + int(0).to_bytes(1, byteorder="little")
-        + int(BYTE_PER_LINE).to_bytes(2, byteorder="little")
-        + int(1).to_bytes(2, byteorder="little")
-    )
-    await send_command(client=client, data=command)
-
-    # 上記コマンドで指定したバイト数分のビットマップデータを送信する
-    line_data = bytearray([0xFF] * BYTE_PER_LINE)
-    await send_command(client=client, data=line_data)
-
-
 def text_to_bitmap(text: str, fontsize: int) -> BitmapData:
     # 必要なビットマップサイズ
     font = ImageFont.truetype("ipaexm.ttf", fontsize)
@@ -176,8 +182,25 @@ def text_to_bitmap(text: str, fontsize: int) -> BitmapData:
     # ビットマップのバイト列を返却する
     return BitmapData(img.tobytes(), image_width, image_height)
 
+def img_to_bitmap(img_path: str) -> BitmapData:
+    img = Image.open(img_path)
+
+    # image width is fixed to 576dots
+    # calculate image height to keep aspect ratio
+    image_width = DOT_PER_LINE
+    image_height = int(image_width / img.width * img.height)
+
+    # resize & dithering
+    img = img.resize((image_width, image_height))
+    img = img.convert('1', dither=Image.FLOYDSTEINBERG)
+
+    # invert image, because printer prints 1 as black
+    img = ImageOps.invert(img)
+
+    return BitmapData(img.tobytes(), image_width, image_height)
 
 if __name__ == "__main__":
+    #asyncio.run(PrintImg('/Users/A0216/Downloads/arasaka.png'))
     asyncio.run(PrintLabel())
     pass
     # asyncio.run(main(["AAAAAA","あいうえおかきくけこさしすせそたちつてと","BBBBBBBBBBBBBBBBBBBBBB"]))

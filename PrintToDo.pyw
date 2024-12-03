@@ -30,7 +30,7 @@ def main():
     wait_tasks=Notion.get_task("待ち")
     for tw in wait_tasks:
         textList.append(Pomemo.PrintStyle(size=26, text=str("□ " + tw.Text)))
-    asyncio.run(Pomemo.main(textList))
+    asyncio.run(Pomemo.PrintText(textList))
 
 
 if __name__ == "__main__":
