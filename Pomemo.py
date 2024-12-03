@@ -26,6 +26,7 @@ class BitmapData:
 class PrintMode(Enum):
     DEFAULT=0
     LINE=1
+    FEED=2
 
 @dataclass
 class PrintStyle:
@@ -49,6 +50,8 @@ async def main(texts: list[PrintStyle]):
                 await print_text(client=client, text=t.text, fontsize=t.size)
             elif(t.mode==PrintMode.LINE):
                 await print_line(client=client)
+            elif(t.mode==PrintMode.FEED):
+                await feed(client=client)
         # 印字データ書き込みのあとにすぐDisconnectしてしまうとうまく動かないので少し待つ
         await feed(client=client, line=4)
         await asyncio.sleep(2)
