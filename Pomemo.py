@@ -10,6 +10,7 @@ from PIL import ImageFont, Image, ImageDraw
 DEVICE_NAME = "M02 Pro"
 CONNECTION_RETRY_MAX_COUNT = 3
 CHARACTERISTIC_UUID_WRITE = "0000ff02-0000-1000-8000-00805f9b34fb"
+MACADD="AC:C5:F4:F6:FF:98"
 ESC = b"\x1b"
 GS = b"\x1d"
 # 1 line = 576 dots = 72 bytes x 8 bit
@@ -74,7 +75,7 @@ async def PrintLabel():
                 pass
             elif(t=="/feed"):
                 await feed(client=client,line=4)
-            await print_text(client=client,text=t,fontsize=40)
+            else:await print_text(client=client,text=t,fontsize=40)
         await asyncio.sleep(2)
 
 # 初期化
@@ -100,7 +101,7 @@ async def connect() -> Optional[BLEDevice]:
     retry_count = 0
     device = None
     while not device and retry_count < CONNECTION_RETRY_MAX_COUNT:
-        device = await BleakScanner.find_device_by_name(name=DEVICE_NAME)
+        device = await BleakScanner.find_device_by_address(MACADD)
         retry_count += 1
     return device
 
