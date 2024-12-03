@@ -21,6 +21,8 @@ def read_notion_database(database_id):
         **{
             "database_id": database_id,
             "filter": {"property": "タグ", "select": {"equals": "今日やる"}},
+            "sorts": [{"property": "期日", "direction": "ascending"}],
+            "sorts": [{"property": "依頼者", "direction": "ascending"}],
         }
     )
     return response
@@ -43,6 +45,7 @@ def get_task() -> list[NotionData]:
 
 
 if __name__ == "__main__":
-    pass
-    # result=read_notion_database(URL)
+    #pass
+    result=read_notion_database(URL)
+    pprint.pprint(result['results'])
     # pprint.pprint(result['results'][0]['properties']['名前']['title'][0]['plain_text'])

@@ -4,6 +4,7 @@ from typing import Optional
 from bleak import BleakScanner, BLEDevice, BleakClient
 
 from dataclasses import dataclass
+from enum import Enum
 from PIL import ImageFont, Image, ImageDraw
 
 DEVICE_NAME = "M02 Pro"
@@ -22,11 +23,15 @@ class BitmapData:
     width: int
     height: int
 
+class PrintMode(Enum):
+    DEFAULT=0
+    LINE=1
 
 @dataclass
 class PrintStyle:
-    size: int
-    text: str
+    size: int=24
+    text: str=""
+    mode:PrintMode=PrintMode.DEFAULT
 
 
 async def main(texts: list[PrintStyle]):
@@ -40,7 +45,10 @@ async def main(texts: list[PrintStyle]):
     async with BleakClient(device) as client:
         await init_printer(client=client)
         for i, t in enumerate(texts):
-            await print_text(client=client, text=t.text, fontsize=t.size)
+            if(t.mode==PrintMode.DEFAULT):
+                await print_text(client=client, text=t.text, fontsize=t.size)
+            elif(t.mode==PrintMode.LINE):
+                await print_line(client=client)
         # 印字データ書き込みのあとにすぐDisconnectしてしまうとうまく動かないので少し待つ
         await feed(client=client, line=4)
         await asyncio.sleep(2)
@@ -109,6 +117,24 @@ async def print_text(client: BleakClient, text: str, fontsize: int = 24):
 
     # 上記コマンドで指定したバイト数分のビットマップデータを送信する
     await send_command(client=client, data=bitmap_data.bitmap)
+
+
+async def print_line(client: BleakClient):
+    # GS v 0 コマンド
+    # パラメータの詳細はESC/POSのコマンドリファレンスを参照
+    # ビットマップのx,yサイズはリトルエンディアンで送信する必要があるので注意
+    command = (
+        GS
+        + b"v0"
+        + int(0).to_bytes(1, byteorder="little")
+        + int(BYTE_PER_LINE).to_bytes(2, byteorder="little")
+        + int(1).to_bytes(2, byteorder="little")
+    )
+    await send_command(client=client, data=command)
+
+    # 上記コマンドで指定したバイト数分のビットマップデータを送信する
+    line_data = bytearray([0xFF] * BYTE_PER_LINE)
+    await send_command(client=client, data=line_data)
 
 
 def text_to_bitmap(text: str, fontsize: int) -> BitmapData:
