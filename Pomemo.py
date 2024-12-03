@@ -56,12 +56,31 @@ async def main(texts: list[PrintStyle]):
         await feed(client=client, line=4)
         await asyncio.sleep(2)
 
+async def PrintLabel():
+    device = await connect()
+    if device:
+        print("connected.")
+    else:
+        print("device not found.")
+        return
+    async with BleakClient(device) as client:
+        await init_printer(client=client)
+        while (True):
+            t=input("input text or exit\n")
+            if(t=="/exit"):
+                await feed(client=client,line=4)
+                break
+            elif(t==""):
+                pass
+            elif(t=="/feed"):
+                await feed(client=client,line=4)
+            await print_text(client=client,text=t,fontsize=40)
+        await asyncio.sleep(2)
 
 # 初期化
 async def init_printer(client: BleakClient):
     print(f"init printer")
     await send_command(client=client, data=ESC + b"@" + b"\x1f\x11\x02\x04")
-
 
 # コマンド送信
 async def send_command(client: BleakClient, data: bytes):
@@ -158,5 +177,6 @@ def text_to_bitmap(text: str, fontsize: int) -> BitmapData:
 
 
 if __name__ == "__main__":
+    asyncio.run(PrintLabel())
     pass
     # asyncio.run(main(["AAAAAA","あいうえおかきくけこさしすせそたちつてと","BBBBBBBBBBBBBBBBBBBBBB"]))
