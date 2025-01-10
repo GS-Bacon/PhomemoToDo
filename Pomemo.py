@@ -200,7 +200,7 @@ def img_to_bitmap(img_path: str) -> BitmapData:
     return BitmapData(img.tobytes(), image_width, image_height)
 
 if __name__ == "__main__":
-    #asyncio.run(PrintImg('/Users/A0216/Downloads/arasaka.png'))
+    #asyncio.run(PrintImg('/Users/A0216/Downloads/arasakaLogo.png'))
     asyncio.run(PrintLabel())
     pass
     # asyncio.run(main(["AAAAAA","あいうえおかきくけこさしすせそたちつてと","BBBBBBBBBBBBBBBBBBBBBB"]))
